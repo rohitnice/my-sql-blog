@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function LikeButton({ postId }) {
   const { user, token } = useAuth();
   const [liked, setLiked] = useState(false);
@@ -11,7 +13,7 @@ export default function LikeButton({ postId }) {
     // Fetch likes count
     const fetchCount = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/posts/${postId}/likes/count`);
+        const res = await fetch(`${API_URL}/api/posts/${postId}/likes/count`);
         const data = await res.json();
         setCount(data.count);
       } catch (err) {
@@ -23,7 +25,7 @@ export default function LikeButton({ postId }) {
     const checkLike = async () => {
       if (!user) return;
       try {
-        const res = await fetch(`http://localhost:5000/api/posts/${postId}/likes/check`, {
+        const res = await fetch(`${API_URL}/api/posts/${postId}/likes/check`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -48,7 +50,7 @@ export default function LikeButton({ postId }) {
     setLoading(true);
     try {
       const method = liked ? 'DELETE' : 'POST';
-      const res = await fetch(`http://localhost:5000/api/posts/${postId}/likes`, {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/likes`, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`

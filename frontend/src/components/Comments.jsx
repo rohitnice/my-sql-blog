@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function Comments({ postId, comments: initialComments }) {
   const { user, token } = useAuth();
   const [comments, setComments] = useState(initialComments || []);
@@ -19,7 +21,7 @@ export default function Comments({ postId, comments: initialComments }) {
     setError('');
 
     try {
-      const res = await fetch(`http://localhost:5000/api/posts/${postId}/comments`, {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -48,7 +50,7 @@ export default function Comments({ postId, comments: initialComments }) {
     if (!window.confirm('Delete this comment?')) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/posts/${postId}/comments/${commentId}`, {
+      const res = await fetch(`${API_URL}/api/posts/${postId}/comments/${commentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -1,4 +1,6 @@
-const BASE_URL = 'http://localhost:5000/api/posts';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const CHATBOT_URL = import.meta.env.VITE_CHATBOT_URL || 'http://localhost:5000';
+const BASE_URL = `${API_URL}/api/posts`;
 
 export const postApi = {
   getAll: async () => {
@@ -24,7 +26,7 @@ export const postApi = {
   },
 
   generateExcerpt: async (content) => {
-    const res = await fetch(`${BASE_URL}/ai/excerpt`, {
+    const res = await fetch(`${CHATBOT_URL}/api/ai/excerpt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
@@ -34,7 +36,7 @@ export const postApi = {
   },
 
   generateTitleIdeas: async (content, currentTitle) => {
-    const res = await fetch(`${BASE_URL}/ai/title-ideas`, {
+    const res = await fetch(`${CHATBOT_URL}/api/ai/title-ideas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content, currentTitle })
@@ -44,7 +46,7 @@ export const postApi = {
   },
 
   grammarCheck: async (text) => {
-    const res = await fetch(`${BASE_URL}/ai/grammar-check`, {
+    const res = await fetch(`${CHATBOT_URL}/api/ai/grammar-check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text })
@@ -54,7 +56,7 @@ export const postApi = {
   },
 
   chat: async (messages) => {
-    const res = await fetch(`${BASE_URL}/ai/chat`, {
+    const res = await fetch(`${CHATBOT_URL}/api/ai/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages })

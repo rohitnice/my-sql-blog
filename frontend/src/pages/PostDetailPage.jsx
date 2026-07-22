@@ -6,6 +6,8 @@ import { postApi } from '../api/postApi';
 import LikeButton from '../components/LikeButton';
 import Comments from '../components/Comments';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 export default function PostDetailPage() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
@@ -24,7 +26,7 @@ export default function PostDetailPage() {
 
     const fetchComments = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/posts/${id}/comments`);
+        const res = await fetch(`${API_URL}/api/posts/${id}/comments`);
         const data = await res.json();
         setComments(data);
       } catch (err) {
