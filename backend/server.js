@@ -21,6 +21,6 @@ app.use('/api/posts/:postId/comments', commentRoutes);
 app.use('/api/posts/:postId/likes', likeRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Backend Server listening live on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend Server listening live on http://0.0.0.0:${PORT}`);
 });
