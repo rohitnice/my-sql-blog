@@ -44,8 +44,8 @@ exports.register = async (req, res) => {
             username
         });
     } catch (err) {
-        console.error('Register error:', err);
-        res.status(500).json({ error: 'Registration failed' });
+        console.error('Register error:', err.message, err.code);
+        res.status(500).json({ error: 'Registration failed', details: err.message });
     }
 };
 
