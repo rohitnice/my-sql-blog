@@ -1,5 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const CHATBOT_URL = import.meta.env.VITE_FASTAPI_URL || import.meta.env.VITE_CHATBOT_URL || 'http://127.0.0.1:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800';
+const CHATBOT_URL = import.meta.env.VITE_CHATBOT_URL || import.meta.env.VITE_FASTAPI_URL || 'http://127.0.0.1:8000';
 const BASE_URL = `${API_URL}/api/posts`;
 
 export const postApi = {
@@ -37,7 +37,7 @@ export const postApi = {
     return res.json();
   },
 
-  // New AI Assistant Chat & Recommendation Call
+  // AI Assistant Chat & Recommendation Call
   askAi: async ({ postId, title, desc, mode, question }) => {
     const res = await fetch(`${CHATBOT_URL}/chat`, {
       method: 'POST',

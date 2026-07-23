@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-const FASTAPI_URL = import.meta.env.VITE_FASTAPI_URL || 'http://127.0.0.1:8000';
+const FASTAPI_URL = 
+  import.meta.env.VITE_CHATBOT_URL || 
+  import.meta.env.VITE_FASTAPI_URL || 
+  'http://127.0.0.1:8000';
 
 export default function AiAssistant({ post, onClose }) {
   const [mode, setMode] = useState('summary');

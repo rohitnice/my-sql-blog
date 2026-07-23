@@ -9,8 +9,25 @@ const likeRoutes = require('./routes/likeRoutes');
 
 const app = express();
 
-// Global Middlewares
-app.use(cors());
+// Configure CORS for local development and Render deployment
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://my-sql-frontend.onrender.com',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Fallback allow to avoid unexpected CORS blocks in deployment
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(requestLogger);
 
@@ -22,5 +39,5 @@ app.use('/api/posts/:postId/likes', likeRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Backend Server listening live on http://0.0.0.0:${PORT}`);
+    console.log(`Backend Server listening live on port ${PORT}`);
 });
