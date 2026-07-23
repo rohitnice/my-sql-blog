@@ -1,15 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const postController = require('../controllers/postController');
-const aiController = require('../controllers/aiProxyController');
 
+// Post routes
 router.get('/', postController.getAllPosts);
 router.get('/:id', postController.getPostById);
 router.post('/', postController.createPost);
-
-router.post('/ai/excerpt', aiController.generateExcerpt);
-router.post('/ai/title-ideas', aiController.generateTitleIdeas);
-router.post('/ai/grammar-check', aiController.grammarCheck);
-router.post('/ai/chat', aiController.chat);
+router.delete('/:id', postController.deletePost);
 
 module.exports = router;

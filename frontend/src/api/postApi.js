@@ -1,20 +1,23 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const CHATBOT_URL = import.meta.env.VITE_CHATBOT_URL || 'http://localhost:5000';
+const CHATBOT_URL = import.meta.env.VITE_FASTAPI_URL || import.meta.env.VITE_CHATBOT_URL || 'http://127.0.0.1:8000';
 const BASE_URL = `${API_URL}/api/posts`;
 
 export const postApi = {
+  // Fetch all posts from MySQL
   getAll: async () => {
     const res = await fetch(BASE_URL);
     if (!res.ok) throw new Error('Failed to fetch posts');
     return res.json();
   },
 
+  // Fetch single post by ID
   getById: async (id) => {
     const res = await fetch(`${BASE_URL}/${id}`);
     if (!res.ok) throw new Error('Failed to fetch post details');
     return res.json();
   },
 
+  // Create a new post
   create: async (postData) => {
     const res = await fetch(BASE_URL, {
       method: 'POST',
@@ -25,43 +28,29 @@ export const postApi = {
     return res.json();
   },
 
-  generateExcerpt: async (content) => {
-    const res = await fetch(`${CHATBOT_URL}/api/ai/excerpt`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content })
+  // Delete a post
+  delete: async (id) => {
+    const res = await fetch(`${BASE_URL}/${id}`, {
+      method: 'DELETE'
     });
-    if (!res.ok) throw new Error('Failed to generate excerpt');
+    if (!res.ok) throw new Error('Failed to delete post');
     return res.json();
   },
 
-  generateTitleIdeas: async (content, currentTitle) => {
-    const res = await fetch(`${CHATBOT_URL}/api/ai/title-ideas`, {
+  // New AI Assistant Chat & Recommendation Call
+  askAi: async ({ postId, title, desc, mode, question }) => {
+    const res = await fetch(`${CHATBOT_URL}/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, currentTitle })
+      body: JSON.stringify({
+        post_id: String(postId),
+        title,
+        desc,
+        mode,
+        question: question || null
+      })
     });
-    if (!res.ok) throw new Error('Failed to generate title ideas');
-    return res.json();
-  },
-
-  grammarCheck: async (text) => {
-    const res = await fetch(`${CHATBOT_URL}/api/ai/grammar-check`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
-    if (!res.ok) throw new Error('Failed to grammar check');
-    return res.json();
-  },
-
-  chat: async (messages) => {
-    const res = await fetch(`${CHATBOT_URL}/api/ai/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages })
-    });
-    if (!res.ok) throw new Error('Failed to send chat message');
+    if (!res.ok) throw new Error('Failed to communicate with AI Assistant');
     return res.json();
   }
 };

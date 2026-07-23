@@ -1,111 +1,102 @@
 import os
-from typing import List, Optional
-
+from typing import Literal, Optional
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from langchain_groq import ChatGroq
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_astradb import AstraDBVectorStore
+from langchain_core.documents import Document
 
 load_dotenv()
+
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-class ContentRequest(BaseModel):
-    content: str = Field(..., min_length=1)
-    currentTitle: Optional[str] = None
+llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
+    api_key=os.getenv("GROQ_API_KEY")
+)
 
-class TextRequest(BaseModel):
-    text: str = Field(..., min_length=1)
+# Use 'gemini-embedding-001' as text-embedding-004 is retired
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="gemini-embedding-001",
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 
-class ChatMessage(BaseModel):
-    role: str = Field(..., min_length=1)
-    content: str = Field(..., min_length=1)
+vectorstore = AstraDBVectorStore(
+    embedding=embeddings,
+    collection_name="blog_embedding",
+    api_endpoint=os.getenv("ASTRA_DB_ENDPOINT"),
+    token=os.getenv("ASTRA_DB_TOKEN"),
+)
+
+
+class IndexRequest(BaseModel):
+    post_id: str
+    title: str
+    desc: str
+
 
 class ChatRequest(BaseModel):
-    messages: List[ChatMessage] = Field(..., min_items=1)
+    post_id: str
+    title: str
+    desc: str
+    question: Optional[str] = None
+    mode: Literal["summary", "keypoints", "apply", "qa"] = "qa"
 
 
-def generate_simple_excerpt(content: str) -> str:
-    words = content.strip().split()
-    if not words:
-        return ''
-    excerpt = ' '.join(words[:25])
-    if len(words) > 25:
-        excerpt += '...'
-    return excerpt
+@app.post("/index")
+def index_blog(req: IndexRequest):
+    doc = Document(
+        page_content=f"{req.title}\n{req.desc}",
+        metadata={"post_id": str(req.post_id), "title": req.title},
+    )
+    vectorstore.add_documents([doc], ids=[str(req.post_id)])
+    return {"status": "indexed", "post_id": req.post_id}
 
 
-def generate_simple_titles(content: str, current_title: Optional[str] = None) -> List[str]:
-    normalized = ' '.join(content.strip().split())
-    title_root = current_title.strip() if current_title and current_title.strip() else ''
-    if not title_root:
-        title_root = normalized.split('.')[0][:50].strip()
-    title_root = title_root.rstrip(' .')
-    if not title_root:
-        title_root = 'Blog Post'
-
-    return [
-        f'{title_root}: A Practical Guide',
-        f'How to {title_root}' if not title_root.lower().startswith('how to') else f'{title_root} Explained',
-        f'{title_root} — Tips and Insights'
-    ]
+@app.delete("/index/{post_id}")
+def delete_blog_index(post_id: str):
+    try:
+        vectorstore.delete(ids=[post_id])
+        return {"status": "deleted", "post_id": post_id}
+    except Exception as e:
+        return {"status": "error", "post_id": post_id, "error": str(e)}
 
 
-def ensure_sentence_case(text: str) -> str:
-    cleaned = text.strip()
-    if not cleaned:
-        return cleaned
-    cleaned = cleaned.replace(' i ', ' I ')
-    if cleaned and cleaned[0].islower():
-        cleaned = cleaned[0].upper() + cleaned[1:]
-    return cleaned
+@app.post("/chat")
+def chat(req: ChatRequest):
+    blog_text = f"Title: {req.title}\n\nContent: {req.desc}"
 
+    prompts = {
+        "summary": f"Summarize this blog in 3-4 sentences.\n\n{blog_text}",
+        "keypoints": f"List the key points of this blog as a short bullet list.\n\n{blog_text}",
+        "apply": f"Give 3-5 practical ways a reader could apply this blog in their life or work.\n\n{blog_text}",
+        "qa": f"Answer the question using only the blog below. Be concise.\n\nBlog:\n{blog_text}\n\nQuestion: {req.question}",
+    }
 
-def simple_chat_response(messages: List[ChatMessage]) -> str:
-    last_user = ''
-    for message in reversed(messages):
-        if message.role.strip().lower() == 'user':
-            last_user = message.content.strip()
+    prompt = prompts.get(req.mode, prompts["qa"])
+    answer = llm.invoke(prompt).content
+
+    search_query = req.question if (req.mode == "qa" and req.question) else req.title
+
+    suggest = None
+    results = vectorstore.similarity_search(search_query, k=3)
+    for r in results:
+        if str(r.metadata.get("post_id")) != str(req.post_id):
+            suggest = {"id": r.metadata["post_id"], "title": r.metadata["title"]}
             break
 
-    if not last_user:
-        return 'Hello! How can I help you today?'
-
-    lower_msg = last_user.lower()
-    if 'title' in lower_msg:
-        return 'Try using a concise and descriptive title that highlights the topic clearly.'
-    if 'grammar' in lower_msg or 'check' in lower_msg:
-        return 'I can help you improve your text. Paste the content and I will review it.'
-    if 'hello' in lower_msg or 'hi' in lower_msg:
-        return 'Hi there! What would you like to do with your blog post today?'
-
-    return f'I heard you: "{last_user}". What else would you like to do?'
+    return {"answer": answer, "suggested_blog": suggest}
 
 
-@app.get('/health')
+@app.get("/")
 def health():
-    return {'status': 'ok'}
-
-
-@app.post('/api/ai/excerpt')
-def generate_excerpt(request: ContentRequest):
-    excerpt = generate_simple_excerpt(request.content)
-    return {'excerpt': excerpt}
-
-
-@app.post('/api/ai/title-ideas')
-def generate_title_ideas(request: ContentRequest):
-    titles = generate_simple_titles(request.content, request.currentTitle)
-    if not titles:
-        raise HTTPException(status_code=500, detail='Unable to generate title ideas')
-    return {'titles': titles}
-
-
-@app.post('/api/ai/grammar-check')
-def grammar_check(request: TextRequest):
-    corrected_text = ensure_sentence_case(request.text)
-    return {'correctedText': corrected_text}
-
-
-@app.post('/api/ai/chat')
-def chat(request: ChatRequest):
-    response = simple_chat_response(request.messages)
-    return {'response': response}
+    return {"status": "running"}

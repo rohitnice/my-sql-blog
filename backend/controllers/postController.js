@@ -1,4 +1,8 @@
 const db = require('../config/db');
+const axios = require('axios');
+
+// FastApi Endpoint for AI / Vector Indexing
+const FASTAPI_URL = process.env.FASTAPI_URL || 'http://127.0.0.1:8000';
 
 // Fetch all posts from MySQL
 exports.getAllPosts = async (req, res) => {
@@ -25,7 +29,7 @@ exports.getPostById = async (req, res) => {
     }
 };
 
-// Insert a new post into MySQL
+// Insert a new post into MySQL & Automatically Index into AstraDB
 exports.createPost = async (req, res) => {
     const { title, author, excerpt, content, date } = req.body;
 
@@ -39,11 +43,54 @@ exports.createPost = async (req, res) => {
     }
 
     try {
+        // 1. Insert into MySQL
         const query = 'INSERT INTO posts (title, author, excerpt, content, date) VALUES (?, ?, ?, ?, ?)';
         const [result] = await db.query(query, [title, author, excerpt, content, postDate]);
-        res.status(201).json({ message: 'Post created successfully!', postId: result.insertId });
+        const newPostId = result.insertId;
+
+        // 2. Index the new post into AstraDB via Python FastAPI Backend
+        try {
+            await axios.post(`${FASTAPI_URL}/index`, {
+                post_id: String(newPostId),
+                title: title,
+                desc: content || excerpt
+            });
+            console.log(`Successfully indexed post #${newPostId} into AstraDB`);
+        } catch (aiErr) {
+            console.error('FastAPI Indexing Warning:', aiErr.message);
+            // We log the error but don't fail the response, ensuring post creation in MySQL succeeds regardless
+        }
+
+        res.status(201).json({ message: 'Post created successfully!', postId: newPostId });
     } catch (err) {
         console.error('createPost error:', err);
         res.status(500).json({ error: 'Database error saving post' });
+    }
+};
+
+// Delete a post from MySQL & Remove Embeddings from AstraDB
+exports.deletePost = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // 1. Delete from MySQL
+        const [result] = await db.query('DELETE FROM posts WHERE id = ?', [id]);
+        
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+
+        // 2. Remove embedding index from AstraDB
+        try {
+            await axios.delete(`${FASTAPI_URL}/index/${id}`);
+            console.log(`Successfully deleted vector index for post #${id}`);
+        } catch (aiErr) {
+            console.error('FastAPI Index Deletion Warning:', aiErr.message);
+        }
+
+        res.json({ message: 'Post and corresponding vector index deleted successfully!' });
+    } catch (err) {
+        console.error('deletePost error:', err);
+        res.status(500).json({ error: 'Database error deleting post' });
     }
 };
